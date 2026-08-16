@@ -1,10 +1,10 @@
 {
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Windows desktop assistant for WorkBuddy credit and daily check-in",
   "homepage": "https://github.com/deloz/workbuddy-assistant",
   "license": "MIT",
-  "url": "https://github.com/deloz/workbuddy-assistant/releases/download/v0.0.1/workbuddy-assistant.exe",
-  "hash": "950fced5c3660ec9bed0ad87cf0cc84817f873758c047f6616bc52bd28b5b8d7",
+  "url": "https://github.com/deloz/workbuddy-assistant/releases/download/v0.0.2/workbuddy-assistant.exe",
+  "hash": "01c96592eb6a753da267a94b61a38f57e5ae9d2018d2f57b67077ecdd7c7f1c0",
   "bin": "workbuddy-assistant.exe",
   "shortcuts": [
     [
