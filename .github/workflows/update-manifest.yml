@@ -1,0 +1,104 @@
+name: Update WorkBuddy Assistant Manifest
+
+on:
+  repository_dispatch:
+    types:
+      - workbuddy_assistant_release
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v0.0.1
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: manifest-${{ github.event.client_payload.tag || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: windows-latest
+    env:
+      REPOSITORY_OWNER: deloz
+      MAIN_REPOSITORY: workbuddy-assistant
+      DISPATCH_TAG: ${{ github.event.client_payload.tag }}
+      INPUT_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Checkout bucket
+        uses: actions/checkout@v7
+
+      - name: Resolve release
+        shell: pwsh
+        run: |
+          $tag = if ("${{ github.event_name }}" -eq "repository_dispatch") {
+            $env:DISPATCH_TAG
+          } else {
+            $env:INPUT_TAG
+          }
+          if ($tag -notmatch '^v([0-9]+\.[0-9]+\.[0-9]+)$') {
+            throw "Tag must use vX.Y.Z format: $tag"
+          }
+
+          $version = $Matches[1]
+          $url = "https://github.com/$env:REPOSITORY_OWNER/$env:MAIN_REPOSITORY/releases/download/$tag/workbuddy-assistant.exe"
+          "RELEASE_TAG=$tag" >> $env:GITHUB_ENV
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+          "RELEASE_URL=$url" >> $env:GITHUB_ENV
+
+      - name: Download release asset
+        shell: pwsh
+        run: Invoke-WebRequest -Uri $env:RELEASE_URL -OutFile workbuddy-assistant.exe
+
+      - name: Generate manifest
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -LiteralPath workbuddy-assistant.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          $manifest = [ordered]@{
+            version = $env:RELEASE_VERSION
+            description = "Windows desktop assistant for WorkBuddy credit and daily check-in"
+            homepage = "https://github.com/deloz/workbuddy-assistant"
+            license = "MIT"
+            url = $env:RELEASE_URL
+            hash = $hash
+            bin = "workbuddy-assistant.exe"
+            shortcuts = @(, @("workbuddy-assistant.exe", "WorkBuddy助手"))
+            checkver = "github"
+            autoupdate = [ordered]@{
+              url = "https://github.com/deloz/workbuddy-assistant/releases/download/v`$version/workbuddy-assistant.exe"
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath bucket/workbuddy-assistant.json -Encoding utf8NoBOM
+          "RELEASE_HASH=$hash" >> $env:GITHUB_ENV
+
+      - name: Validate manifest
+        shell: pwsh
+        run: |
+          $manifest = Get-Content -Raw -Encoding UTF8 bucket/workbuddy-assistant.json |
+            ConvertFrom-Json
+          if ($manifest.version -ne $env:RELEASE_VERSION) {
+            throw "Manifest version does not match the release"
+          }
+          if ($manifest.url -ne $env:RELEASE_URL) {
+            throw "Manifest URL does not match the release asset"
+          }
+          $downloadHash = (Get-FileHash -LiteralPath workbuddy-assistant.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($manifest.hash -ne $downloadHash -or $manifest.hash -ne $env:RELEASE_HASH) {
+            throw "Manifest SHA256 does not match the release asset"
+          }
+
+      - name: Commit manifest
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/workbuddy-assistant.json
+          if (-not (git status --porcelain)) {
+            Write-Host "Manifest is already current"
+            exit 0
+          }
+          git commit -m "chore(manifest): update workbuddy-assistant to $env:RELEASE_VERSION"
+          git push
