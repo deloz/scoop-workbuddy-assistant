@@ -4,7 +4,7 @@
   "homepage": "https://github.com/deloz/workbuddy-assistant",
   "license": "MIT",
   "url": "https://github.com/deloz/workbuddy-assistant/releases/download/v0.0.1/workbuddy-assistant.exe",
-  "hash": "300aad9b1f59db9a70454e0ebaf1b587abb3820b834752595ea27ec855f5c5d3",
+  "hash": "950fced5c3660ec9bed0ad87cf0cc84817f873758c047f6616bc52bd28b5b8d7",
   "bin": "workbuddy-assistant.exe",
   "shortcuts": [
     [
